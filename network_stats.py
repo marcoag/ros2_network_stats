@@ -23,6 +23,10 @@ async def ping(ip, log_dir):
 async def bw_topic(topic, log_dir):
     with open('{}/{}_topic_bw.log'.format(log_dir, topic.replace('/', '__')), 'w') as file_bw_topic:
         return await asyncio.subprocess.create_subprocess_exec('ros2', 'topic', 'bw', topic, stdout=file_bw_topic)
+    
+async def delay_topic(topic, log_dir):
+    with open('{}/{}_topic_delay.log'.format(log_dir, topic.replace('/', '__')), 'w') as file_delay_topic:
+        return await asyncio.subprocess.create_subprocess_exec('ros2', 'topic', 'delay', topic, stdout=file_delay_topic)
 
 async def main(loop, ips, log_dir):
     #Run traceroute to all ips
@@ -48,6 +52,7 @@ async def main(loop, ips, log_dir):
     with open('{}/monitored_topics.log'.format(log_dir), 'r') as file_topics:
         for topic in file_topics:
             bw_topic_process.append(await bw_topic(topic.strip(), log_dir))
+            delay_topic_process.append(await delay_topic(topic.strip(), log_dir))
             
     
     
@@ -57,8 +62,19 @@ async def main(loop, ips, log_dir):
             #should kill tracroutes? 
             #killing all ping process and closing their files
             for p in ping_process:
-                p.terminate()
+                if p:
+                    try:
+                        p.send_signal(signal.SIGINT)
+                    except ProcessLookupError as e:
+                        print('ProcessLookupError' + str(e))
             for p in bw_topic_process:
+                if p:
+                    try:
+                        p.send_signal(signal.SIGINT)
+                    except ProcessLookupError as e:
+                        print('ProcessLookupError' + str(e))
+                        
+            for p in delay_topic_process:
                 if p:
                     try:
                         p.send_signal(signal.SIGINT)
